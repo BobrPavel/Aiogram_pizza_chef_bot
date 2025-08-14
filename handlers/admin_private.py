@@ -40,6 +40,11 @@ async def admin_features(message: types.Message):
     await message.answer("Что хотите сделать?", reply_markup=ADMIN_KB)
 
 
+@admin_router.message(Command("off_admin"))
+async def admin_features(message: types.Message):
+    await message.answer("Админ клавиатура удалена", reply_markup=del_reply_kd)
+
+
 @admin_router.message(F.text == 'Ассортимент')
 async def admin_features(message: types.Message, session: AsyncSession):
     categories = await orm_get_categories(session)

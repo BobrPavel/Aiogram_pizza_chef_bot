@@ -1,4 +1,4 @@
-from aiogram.types import KeyboardButton
+from aiogram.types import KeyboardButton, ReplyKeyboardRemove
 from aiogram.utils.keyboard import ReplyKeyboardBuilder
 
 def get_keyboard(
@@ -25,3 +25,4 @@ def get_keyboard(
         resize_keyboard=True, input_field_placeholder=placeholder)
 
 
+del_reply_kd = ReplyKeyboardRemove()
