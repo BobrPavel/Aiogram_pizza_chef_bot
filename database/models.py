@@ -63,6 +63,7 @@ class Messages(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id', ondelete='CASCADE'), nullable=False)
+    chat_id: Mapped[int]
     message_id: Mapped[int]
 
     user: Mapped['User'] = relationship(backref='messages')

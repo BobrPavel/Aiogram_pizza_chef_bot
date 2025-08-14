@@ -11,13 +11,14 @@ from database.models import Banner, Cart, Category, Orders, Product, User, Messa
 async def orm_add_message(
     session: AsyncSession,
     user_id: int,
+    chat_id: int,
     message_id: int,
 ):
     query = select(Messages).where(Messages.user_id == user_id)
     result = await session.execute(query)
     if result.first() is None:
         session.add(
-            Messages(user_id=user_id, message_id=message_id)
+            Messages(user_id=user_id, chat_id=chat_id, message_id=message_id)
         )
         await session.commit()
 
@@ -130,14 +131,13 @@ async def orm_add_user(
     session: AsyncSession,
     user_id: int,
     first_name: str | None = None,
-    last_name: str | None = None,
     phone: str | None = None,
 ):
     query = select(User).where(User.user_id == user_id)
     result = await session.execute(query)
     if result.first() is None:
         session.add(
-            User(user_id=user_id, first_name=first_name, last_name=last_name, phone=phone)
+            User(user_id=user_id, first_name=first_name, phone=phone)
         )
         await session.commit()
 
