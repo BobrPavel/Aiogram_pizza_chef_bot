@@ -52,10 +52,7 @@ PHONE_KB = get_keyboard(
     sizes=(2, ),
 )
 
-
-
-@user_private_router.message(CommandStart())
-async def start_cmd(message: types.Message, session: AsyncSession):
+async def inline_kb_create(message: types.Message, session: AsyncSession):
     media, reply_markup = await get_menu_content(session, level=0, menu_name="main")
     msg = await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
    
@@ -82,6 +79,38 @@ async def start_cmd(message: types.Message, session: AsyncSession):
 
     except Exception:  
         pass 
+
+
+@user_private_router.message(CommandStart())
+async def start_cmd(message: types.Message, session: AsyncSession):
+    await inline_kb_create(message, session)
+
+    # media, reply_markup = await get_menu_content(session, level=0, menu_name="main")
+    # msg = await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
+   
+   
+    # '''
+    # Код ниже удаляет inline клавиатуру через некоторое время. В рабочем режиме через 3 часа или 10800 секунд.
+    # Этот же код сохраняет id сообщения в БД, благодаря чему можно будет удалить клавиатуру при запуске FSM для 
+    # создания заказа.
+    # '''
+
+    # user = message.from_user
+    # await orm_add_message(
+    #     session,
+    #     user_id=user.id,
+    #     chat_id = msg.chat.id,
+    #     message_id = msg.message_id,
+        
+    # )
+    # await asyncio.sleep(30)  
+    # try:
+    #     await msg.delete()
+    #     await message.answer("Бот в спящем режиме, но все ваши действия сохранены. Введите команду /start")  
+    #     await orm_delete_message(session, user_id=user.id)
+
+    # except Exception:  
+    #     pass 
 
 async def add_to_cart(callback: types.CallbackQuery, callback_data: MenuCallBack, session: AsyncSession):
     user = callback.from_user
@@ -211,7 +240,8 @@ async def adres(message: types.Message, state: FSMContext, session: AsyncSession
     await state.update_data(adres=message.text)
     await message.answer("Заказ принят", reply_markup=del_reply_kd)
 
-    CommandStart()
+    await inline_kb_create(message, session)
+    
     data = await state.get_data()
     print(data)
     
