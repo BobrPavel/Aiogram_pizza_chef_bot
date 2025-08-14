@@ -42,7 +42,7 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(BigInteger, unique=True)
     first_name: Mapped[str] = mapped_column(String(150), nullable=True)
-    last_name: Mapped[str]  = mapped_column(String(150), nullable=True)
+    # last_name: Mapped[str]  = mapped_column(String(150), nullable=True)
     phone: Mapped[str]  = mapped_column(String(13), nullable=True)
 
 
@@ -66,3 +66,17 @@ class Messages(Base):
     message_id: Mapped[int]
 
     user: Mapped['User'] = relationship(backref='messages')
+
+
+class Orders(Base):
+    __tablename__ = 'orders'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id', ondelete='CASCADE'), nullable=False)
+    cart_id: Mapped[int] = mapped_column(ForeignKey('cart.id', ondelete='CASCADE'), nullable=False)
+    adres: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(150), nullable=False, default='Не готово') 
+
+
+    user: Mapped['User'] = relationship(backref='orders')
+    cart: Mapped['Cart'] = relationship(backref='orders')

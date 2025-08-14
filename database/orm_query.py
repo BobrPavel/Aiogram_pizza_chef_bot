@@ -3,7 +3,7 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from database.models import Banner, Cart, Category, Product, User, Messages
+from database.models import Banner, Cart, Category, Orders, Product, User, Messages
 
 
 ############### Работа с сообщениями ###############
@@ -185,5 +185,22 @@ async def orm_reduce_product_in_cart(session: AsyncSession, user_id: int, produc
         await orm_delete_from_cart(session, user_id, product_id)
         await session.commit()
         return False
+
+
+######################## Работа с заказами #######################################
+
+
+async def orm_add_order(session: AsyncSession, user_id: int, cart_id: int, adres: str, status: str):
+
+    session.add(Orders(user_id=user_id, cart_id=cart_id, adres=adres, status=status))
+    await session.commit()
+
+
+async def orm_get_user_orders(session: AsyncSession, user_id):
+    query = select(Orders).filter(Orders.user_id == user_id).options(joinedload(Orders.cart))
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
 
 
