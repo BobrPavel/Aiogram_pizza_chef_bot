@@ -128,7 +128,7 @@ def get_user_cart_btns(
         InlineKeyboardButton(text="На главную",
                     callback_data=MenuCallBack(level=0, menu_name='main').pack()),
         InlineKeyboardButton(text="Заказать",
-                    callback_data=MenuCallBack(level=3, menu_name='order').pack()),
+                    callback_data=MenuCallBack(level=3, menu_name='create_order').pack()),
         ]
         return keyboard.row(*row2).as_markup()
     else:

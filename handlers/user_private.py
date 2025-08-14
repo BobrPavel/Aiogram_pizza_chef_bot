@@ -1,14 +1,18 @@
 import asyncio
 
 from aiogram import F, types, Router
+from aiogram.client import bot
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
+from aiogram.methods.delete_message import DeleteMessage
+
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.orm_query import (
     orm_add_message,
+    orm_get_message,
     orm_delete_message,
     orm_add_to_cart,
     orm_add_user,
@@ -23,8 +27,11 @@ from kbds.reply import get_keyboard, del_reply_kd
 
 
 
+
 user_private_router = Router()
 user_private_router.message.filter(ChatTypeFilter(["private"]))
+
+
 
 
 SHIPPING_KB = get_keyboard(
@@ -67,7 +74,7 @@ async def start_cmd(message: types.Message, session: AsyncSession):
         message_id = msg.message_id,
         
     )
-    await asyncio.sleep(25)  
+    await asyncio.sleep(30)  
     try:
         await msg.delete()
         await message.answer("Бот в спящем режиме, но все ваши действия сохранены. Введите команду /start")  
@@ -87,7 +94,7 @@ async def add_to_cart(callback: types.CallbackQuery, callback_data: MenuCallBack
     await orm_add_to_cart(session, user_id=user.id, product_id=callback_data.product_id)
     await callback.answer("Товар добавлен в корзину.", show_alert=True)
 
-'''
+
 
 # ######################### FSM для заказа товаров ###################
 
@@ -101,14 +108,17 @@ class Ordering(StatesGroup):
 
 # Становимся в состояние ожидания ввода first_name
 
-async def order_fcm(callback: types.CallbackQuery, callback_data: MenuCallBack, state: FSMContext, session: AsyncSession):
+async def create_order(callback: types.CallbackQuery, callback_data: MenuCallBack, state: FSMContext, session: AsyncSession):
 
-    # await bot.delete_message(...)
+    try:
+        user = callback.from_user
+        await orm_delete_message(session, user_id=user.id)
+        msg = callback.message
+        await msg.delete()
+    except Exception:  
+        pass 
 
-    await msg.delete()
-    await orm_delete_message(session, user_id=user.id)
 
-    
     await callback.message.answer("Создание заказа. Введите своё имя")
     await state.set_state(Ordering.first_name)
 
@@ -169,6 +179,7 @@ async def first_name2(message: types.Message, state: FSMContext):
 
 
 # Ловим данные для состояние phone и потом меняем состояние на adres
+@user_private_router.message(Ordering.phone, F.contact)
 @user_private_router.message(Ordering.phone, F.text)
 async def add_phone(message: types.Message, state: FSMContext, session: AsyncSession):
   
@@ -200,10 +211,7 @@ async def adres(message: types.Message, state: FSMContext, session: AsyncSession
     await state.update_data(adres=message.text)
     await message.answer("Заказ принят", reply_markup=del_reply_kd)
 
-    media, reply_markup = await get_menu_content(session, level=0, menu_name="main")
-    await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
-
-
+    CommandStart()
     data = await state.get_data()
     print(data)
     
@@ -214,14 +222,17 @@ async def adres(message: types.Message, state: FSMContext, session: AsyncSession
 async def adres2(message: types.Message, state: FSMContext):
     await message.answer("Вы ввели не допустимые данные, введите текст описания товара")
 
-'''
 
 
 @user_private_router.callback_query(MenuCallBack.filter())
-async def user_menu(callback: types.CallbackQuery, callback_data: MenuCallBack, session: AsyncSession):
+async def user_menu(callback: types.CallbackQuery, callback_data: MenuCallBack, state: FSMContext, session: AsyncSession):
 
     if callback_data.menu_name == "add_to_cart":
         await add_to_cart(callback, callback_data, session)
+        return
+    
+    if callback_data.menu_name == "create_order":
+        await create_order(callback, callback_data, state, session)
         return
 
 
@@ -238,35 +249,3 @@ async def user_menu(callback: types.CallbackQuery, callback_data: MenuCallBack, 
     await callback.message.edit_media(media=media, reply_markup=reply_markup)
     await callback.answer()
 
-
-
-
-
-
-
-
-
-
-
-
-# @user_private_router.message(CommandStart())
-# async def start_cmd(message: types.Message):
-#     await message.answer("Привет, я виртуальный помощник",
-#                          reply_markup=get_callback_btns(btns={
-#                              'Нажми меня': 'some_1'
-#                          }))
-    
-# @user_private_router.callback_query(F.data.startswith('some_'))
-# async def counter(callback: types.CallbackQuery):
-#     number = int(callback.data.split('_')[-1])
-
-     
-#     await callback.message.edit_text(
-#         text=f"Нажатий - {number}",
-#         reply_markup=get_callback_btns(btns={
-#                              'Нажми еще раз': f'some_{number+1}'
-#                          }))
-    
-
-# Пример для видео как делать не нужно:
-# menu_level_menuName_category_page_productID
