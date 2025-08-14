@@ -1,9 +1,13 @@
+import asyncio
+
 from aiogram import F, types, Router
 from aiogram.filters import CommandStart
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.orm_query import (
+    orm_add_message,
+    orm_delete_message,
     orm_add_to_cart,
     orm_add_user,
 )
@@ -23,8 +27,30 @@ user_private_router.message.filter(ChatTypeFilter(["private"]))
 @user_private_router.message(CommandStart())
 async def start_cmd(message: types.Message, session: AsyncSession):
     media, reply_markup = await get_menu_content(session, level=0, menu_name="main")
+    msg = await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
+   
+   
+    '''
+    Код ниже удаляет inline клавиатуру через некоторое время. В рабочем режиме через 3 часа или 10800 секунд.
+    Этот же код сохраняет id сообщения в БД, благодаря чему можно будет удалить клавиатуру при запуске FSM для 
+    создания заказа.
+    '''
 
-    await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
+    user = message.from_user
+    await orm_add_message(
+        session,
+        user_id=user.id,
+        message_id = msg.message_id,
+    )
+    await asyncio.sleep(5)  
+    try:
+        await msg.delete()
+        await message.answer("Бот в спящем режиме, введите команду /start")  
+        await orm_delete_message(session, user_id=user.id)
+
+    except Exception:  
+        pass 
+
 
 
 async def add_to_cart(callback: types.CallbackQuery, callback_data: MenuCallBack, session: AsyncSession):

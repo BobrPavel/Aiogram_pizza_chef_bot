@@ -3,8 +3,33 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from database.models import Banner, Cart, Category, Product, User
+from database.models import Banner, Cart, Category, Product, User, Messages
 
+
+############### Работа с сообщениями ###############
+
+async def orm_add_message(
+    session: AsyncSession,
+    user_id: int,
+    message_id: int,
+):
+    query = select(Messages).where(Messages.user_id == user_id)
+    result = await session.execute(query)
+    if result.first() is None:
+        session.add(
+            Messages(user_id=user_id, message_id=message_id)
+        )
+        await session.commit()
+
+async def orm_get_message(session: AsyncSession, user_id: int):
+    query = select(Messages).where(Messages.user_id == user_id)
+    result = await session.execute(query)
+    return result.scalar()
+
+async def orm_delete_message(session: AsyncSession, user_id: int):
+    query = delete(Messages).where(Messages.user_id == user_id)
+    await session.execute(query)
+    await session.commit()
 
 ############### Работа с баннерами (информационными страницами) ###############
 
