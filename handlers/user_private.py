@@ -12,10 +12,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from database.orm_query import (
     orm_add_message,
+    orm_add_order,
     orm_get_message,
     orm_delete_message,
     orm_add_to_cart,
+    orm_get_user_carts,
     orm_add_user,
+    orm_update_user,
 )
 
 from filters.chat_types import ChatTypeFilter
@@ -85,39 +88,14 @@ async def inline_kb_create(message: types.Message, session: AsyncSession):
 async def start_cmd(message: types.Message, session: AsyncSession):
     await inline_kb_create(message, session)
 
-    # media, reply_markup = await get_menu_content(session, level=0, menu_name="main")
-    # msg = await message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
-   
-   
-    # '''
-    # Код ниже удаляет inline клавиатуру через некоторое время. В рабочем режиме через 3 часа или 10800 секунд.
-    # Этот же код сохраняет id сообщения в БД, благодаря чему можно будет удалить клавиатуру при запуске FSM для 
-    # создания заказа.
-    # '''
 
-    # user = message.from_user
-    # await orm_add_message(
-    #     session,
-    #     user_id=user.id,
-    #     chat_id = msg.chat.id,
-    #     message_id = msg.message_id,
-        
-    # )
-    # await asyncio.sleep(30)  
-    # try:
-    #     await msg.delete()
-    #     await message.answer("Бот в спящем режиме, но все ваши действия сохранены. Введите команду /start")  
-    #     await orm_delete_message(session, user_id=user.id)
-
-    # except Exception:  
-    #     pass 
 
 async def add_to_cart(callback: types.CallbackQuery, callback_data: MenuCallBack, session: AsyncSession):
     user = callback.from_user
     await orm_add_user(
         session,
         user_id=user.id,
-        first_name=user.first_name,
+        first_name=None,
         phone=None,
     )
     await orm_add_to_cart(session, user_id=user.id, product_id=callback_data.product_id)
@@ -131,7 +109,7 @@ class Ordering(StatesGroup):
     # Шаги состояний
     first_name = State()
     phone = State()
-    adres = State()
+    delivery_address = State()
 
 
 
@@ -198,7 +176,7 @@ async def first_name(message: types.Message, state: FSMContext):
         return
     
     await state.update_data(first_name=message.text)
-    await message.answer("Введите свой номер телефона", reply_markup=PHONE_KB)
+    await message.answer("Предоставьте нам свой номер телефона, нажав на кнопку", reply_markup=PHONE_KB)
     await state.set_state(Ordering.phone)
 
 # Хендлер для отлова некорректных вводов для состояния first_name
@@ -209,27 +187,22 @@ async def first_name2(message: types.Message, state: FSMContext):
 
 # Ловим данные для состояние phone и потом меняем состояние на adres
 @user_private_router.message(Ordering.phone, F.contact)
-@user_private_router.message(Ordering.phone, F.text)
 async def add_phone(message: types.Message, state: FSMContext, session: AsyncSession):
   
-    # if 2 > len(message.text) >= 150:
-    #     await message.answer(
-    #         "Нам кажется это не ваше имя, пожалуйста введите своё имя"
-    #     )
-    #     return
+        
     
-    await state.update_data(phone=message.text)
+    await state.update_data(phone=message.contact.phone_number)
     await message.answer("Введите свой адресс для доставки или нажмите на одну из окнопок", reply_markup=SHIPPING_KB)
-    await state.set_state(Ordering.adres)
+    await state.set_state(Ordering.delivery_address)
 
 # Хендлер для отлова некорректных вводов для состояния phone
 @user_private_router.message(Ordering.phone)
 async def add_phone2(message: types.Message, state: FSMContext):
-    await message.answer("Вы ввели не допустимые данные, введите номер телефона")
+    await message.answer("Чтобы предоставить свой номер телефона, нажмите на кнопку")
 
 
 # Ловим данные для состояние adres и потом сохраняем заказ в БД
-@user_private_router.message(Ordering.adres, F.text)
+@user_private_router.message(Ordering.delivery_address, F.text)
 async def adres(message: types.Message, state: FSMContext, session: AsyncSession):
 
     if 4 >= len(message.text):
@@ -237,18 +210,28 @@ async def adres(message: types.Message, state: FSMContext, session: AsyncSession
             "Адресс слишком короткий"
         )
         return
-    await state.update_data(adres=message.text)
+    await state.update_data(delivery_address=message.text)
     await message.answer("Заказ принят", reply_markup=del_reply_kd)
 
-    await inline_kb_create(message, session)
     
+    
+
+    user = message.from_user
     data = await state.get_data()
-    print(data)
+
+    await orm_update_user(session, user_id=user.id, first_name=data["first_name"], phone=data["phone"])
+    await orm_add_order(session, user.id, data)
+    # await orm_get_user_carts(session, user_id=user.id)
+    # for cart in await orm_get_user_carts(session, user_id=user.id):
+        
+
+
+    await inline_kb_create(message, session)
     
 
 
 # Хендлер для отлова некорректных вводов для состояния adres
-@user_private_router.message(Ordering.adres)
+@user_private_router.message(Ordering.delivery_address)
 async def adres2(message: types.Message, state: FSMContext):
     await message.answer("Вы ввели не допустимые данные, введите текст описания товара")
 

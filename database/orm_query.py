@@ -142,6 +142,25 @@ async def orm_add_user(
         )
         await session.commit()
 
+async def orm_update_user(
+    session: AsyncSession,
+    user_id: int,
+    first_name: str | None = None,
+    phone: str | None = None,
+):
+    query = (
+            update(User)
+            .where(User.user_id == user_id)
+            .values(
+            
+            first_name=first_name,
+            phone=phone,
+        )
+    )
+    await session.execute(query)
+    await session.commit()
+
+
 
 ######################## Работа с корзинами #######################################
 
@@ -191,8 +210,18 @@ async def orm_reduce_product_in_cart(session: AsyncSession, user_id: int, produc
 ######################## Работа с заказами #######################################
 
 
-async def orm_add_order(session: AsyncSession, user_id: int, phone_number: str, delivery_address: str, status: str):
-    session.add(Orders(user_id=user_id, phone_number=phone_number, delivery_address=delivery_address, status=status))
+# async def orm_add_order(session: AsyncSession, user_id: int, phone_number: str, delivery_address: str, status: str):
+#     session.add(Orders(user_id=user_id, phone_number=phone_number, delivery_address=delivery_address, status=status))
+#     await session.commit()
+
+
+async def orm_add_order(session: AsyncSession, user_id: int, data: dict):
+    obj = Orders(
+        user_id=user_id,
+        # phone=data["phone"],
+        delivery_address=data["delivery_address"],
+    )
+    session.add(obj)
     await session.commit()
 
 
@@ -200,6 +229,10 @@ async def orm_get_user_orders(session: AsyncSession, user_id):
     query = select(Orders).filter(Orders.user_id == user_id)
     result = await session.execute(query)
     return result.scalars().all()
+
+
+
+
 
 
 async def orm_update_order(session: AsyncSession, orders_id: int, data):

@@ -74,7 +74,7 @@ class Orders(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id', ondelete='CASCADE'), nullable=False)
-    phone_number = mapped_column(String(12), nullable=False)
+    # phone_number = mapped_column(String(12), nullable=False)
     delivery_address: Mapped[str] = mapped_column(Text) #записывается адресс / в ресторане / самовывоз
     status: Mapped[str] = mapped_column(String(150), nullable=False, default='Не готово') 
 
