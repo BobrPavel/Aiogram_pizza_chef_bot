@@ -74,10 +74,24 @@ class Orders(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     user_id: Mapped[int] = mapped_column(ForeignKey('user.user_id', ondelete='CASCADE'), nullable=False)
-    cart_id: Mapped[int] = mapped_column(ForeignKey('cart.id', ondelete='CASCADE'), nullable=False)
-    adres: Mapped[str] = mapped_column(Text)
+    phone_number = mapped_column(String(12), nullable=False)
+    delivery_address: Mapped[str] = mapped_column(Text) #записывается адресс / в ресторане / самовывоз
     status: Mapped[str] = mapped_column(String(150), nullable=False, default='Не готово') 
 
 
     user: Mapped['User'] = relationship(backref='orders')
-    cart: Mapped['Cart'] = relationship(backref='orders')
+    
+
+class Order_items(Base):
+    __tablename__ = 'order_items'
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey('orders.id', ondelete='CASCADE'), nullable=False)
+    product_id: Mapped[int] = mapped_column(ForeignKey('product.id', ondelete='CASCADE'), nullable=False)
+    quantity: Mapped[int]
+
+    user: Mapped['Orders'] = relationship(backref='order_items')
+    product: Mapped['Product'] = relationship(backref='order_items')
+
+
+    

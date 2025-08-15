@@ -3,7 +3,7 @@ from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from database.models import Banner, Cart, Category, Orders, Product, User, Messages
+from database.models import Banner, Cart, Category, Order_items, Orders, Product, User, Messages
 
 
 ############### Работа с сообщениями ###############
@@ -125,6 +125,7 @@ async def orm_delete_product(session: AsyncSession, product_id: int):
     await session.execute(query)
     await session.commit()
 
+
 ##################### Добавляем юзера в БД #####################################
 
 async def orm_add_user(
@@ -190,14 +191,39 @@ async def orm_reduce_product_in_cart(session: AsyncSession, user_id: int, produc
 ######################## Работа с заказами #######################################
 
 
-async def orm_add_order(session: AsyncSession, user_id: int, cart_id: int, adres: str, status: str):
-
-    session.add(Orders(user_id=user_id, cart_id=cart_id, adres=adres, status=status))
+async def orm_add_order(session: AsyncSession, user_id: int, phone_number: str, delivery_address: str, status: str):
+    session.add(Orders(user_id=user_id, phone_number=phone_number, delivery_address=delivery_address, status=status))
     await session.commit()
 
 
 async def orm_get_user_orders(session: AsyncSession, user_id):
-    query = select(Orders).filter(Orders.user_id == user_id).options(joinedload(Orders.cart))
+    query = select(Orders).filter(Orders.user_id == user_id)
+    result = await session.execute(query)
+    return result.scalars().all()
+
+
+async def orm_update_order(session: AsyncSession, orders_id: int, data):
+    query = (
+        update(Orders)
+        .where(Orders.id == orders_id)
+        .values(
+            user_id=data["user_id"],
+            phone_number=data["phone_number"],
+            delivery_address=data["delivery_address"],
+            status=float(data["status"]),
+        )
+    )
+    await session.execute(query)
+    await session.commit()
+
+
+async def orm_add_order_items(session: AsyncSession, order_id: int, product_id: int, quantity: int):
+    session.add(Cart(order_id=order_id, product_id=product_id, quantity=quantity))
+    await session.commit()
+
+
+async def orm_get_order_items(session: AsyncSession, order_id: int):
+    query = select(Order_items).filter(Order_items.order_id == order_id).options(joinedload(Order_items.product))
     result = await session.execute(query)
     return result.scalars().all()
 
