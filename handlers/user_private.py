@@ -13,12 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.orm_query import (
     orm_add_message,
     orm_add_order,
-    orm_get_message,
+    # orm_get_message,
     orm_delete_message,
     orm_add_to_cart,
     orm_get_user_carts,
+    orm_delete_from_cart,
     orm_add_user,
     orm_update_user,
+    orm_add_order_items,
 )
 
 from filters.chat_types import ChatTypeFilter
@@ -220,9 +222,11 @@ async def adres(message: types.Message, state: FSMContext, session: AsyncSession
     data = await state.get_data()
 
     await orm_update_user(session, user_id=user.id, first_name=data["first_name"], phone=data["phone"])
-    await orm_add_order(session, user.id, data)
-    # await orm_get_user_carts(session, user_id=user.id)
-    # for cart in await orm_get_user_carts(session, user_id=user.id):
+    order_id = await orm_add_order(session, user.id, data)
+    await orm_get_user_carts(session, user_id=user.id)
+    for cart in await orm_get_user_carts(session, user_id=user.id):
+        await orm_add_order_items(session, order_id=order_id, product_id=cart.product.id, quantity=cart.quantity)
+        await orm_delete_from_cart(session, user_id=user.id, product_id=cart.product.id)
         
 
 

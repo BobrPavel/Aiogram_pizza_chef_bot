@@ -223,6 +223,7 @@ async def orm_add_order(session: AsyncSession, user_id: int, data: dict):
     )
     session.add(obj)
     await session.commit()
+    return obj.id
 
 
 async def orm_get_user_orders(session: AsyncSession, user_id):
@@ -251,7 +252,7 @@ async def orm_update_order(session: AsyncSession, orders_id: int, data):
 
 
 async def orm_add_order_items(session: AsyncSession, order_id: int, product_id: int, quantity: int):
-    session.add(Cart(order_id=order_id, product_id=product_id, quantity=quantity))
+    session.add(Order_items(order_id=order_id, product_id=product_id, quantity=quantity))
     await session.commit()
 
 
