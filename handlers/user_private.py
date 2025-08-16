@@ -1,11 +1,9 @@
 import asyncio
 
 from aiogram import F, types, Router
-from aiogram.client import bot
 from aiogram.filters import CommandStart
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.methods.delete_message import DeleteMessage
 
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -13,11 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from database.orm_query import (
     orm_add_message,
     orm_add_order,
-    # orm_get_message,
+    orm_delete_from_cart,
     orm_delete_message,
     orm_add_to_cart,
     orm_get_user_carts,
-    orm_delete_from_cart,
     orm_add_user,
     orm_update_user,
     orm_add_order_items,
@@ -40,7 +37,7 @@ user_private_router.message.filter(ChatTypeFilter(["private"]))
 
 
 SHIPPING_KB = get_keyboard(
-    "В корзину",
+    "Отмена заказа",
     "Шаг назад",
     "На месте",
     "Cамовывоз",
@@ -49,12 +46,12 @@ SHIPPING_KB = get_keyboard(
 )
 
 PHONE_KB = get_keyboard(
-    "В корзину",
+    "Отмена заказа",
     "Шаг назад",
     "Отправить номер ☎️",
-    placeholder="Или введите другой номер телефона",
+    placeholder="Нажмите на кнопку <Отправить номер>",
     request_contact=2,
-    sizes=(2, ),
+    sizes=(1,2,),
 )
 
 async def inline_kb_create(message: types.Message, session: AsyncSession):
@@ -76,7 +73,7 @@ async def inline_kb_create(message: types.Message, session: AsyncSession):
         message_id = msg.message_id,
         
     )
-    await asyncio.sleep(30)  
+    await asyncio.sleep(30)  # 100800 или 3 часа
     try:
         await msg.delete()
         await message.answer("Бот в спящем режиме, но все ваши действия сохранены. Введите команду /start")  
@@ -116,8 +113,7 @@ class Ordering(StatesGroup):
 
 
 # Становимся в состояние ожидания ввода first_name
-
-async def create_order(callback: types.CallbackQuery, callback_data: MenuCallBack, state: FSMContext, session: AsyncSession):
+async def create_order(callback: types.CallbackQuery, state: FSMContext, session: AsyncSession):
 
     try:
         user = callback.from_user
@@ -133,26 +129,27 @@ async def create_order(callback: types.CallbackQuery, callback_data: MenuCallBac
 
 
 # отмена всех шагов
-async def cancel_handler(callback: types.CallbackQuery, callback_data: MenuCallBack, state: FSMContext, session: AsyncSession) -> None:
+@user_private_router.message(F.text == 'Отмена заказа')
+async def cancel_handler(message: types.Message, state: FSMContext, session:AsyncSession) -> None:
     current_state = await state.get_state()
     if current_state is None:
         return
 
     await state.clear()
 
-    await callback.answer("Действия отменены")
+    await message.answer("Действия отменены", reply_markup=del_reply_kd)
 
-    media, reply_markup = await get_menu_content(session, level=0, menu_name="main")
-    await callback.message.answer_photo(media.media, caption=media.caption, reply_markup=reply_markup)
+    await inline_kb_create(message, session)
 
 
-# Вернутся на шаг назад (на прошлое состояние)
-async def back_step_handler(callback: types.CallbackQuery, callback_data: MenuCallBack, state: FSMContext, session: AsyncSession) -> None:
+# вернуться на шаг назад
+@user_private_router.message(F.text == "Шаг назад")
+async def back_step_handler(message: types.Message, state: FSMContext) -> None:
     current_state = await state.get_state()
 
     if current_state == Ordering.first_name:
-        await callback.message.answer(
-            'Предидущего шага нет, введите своё имя или напишите "отмена"'
+        await message.answer(
+            'Предидущего шага нет, или введите название товара или напишите "Отмена заказа"'
         )
         return
 
@@ -160,7 +157,7 @@ async def back_step_handler(callback: types.CallbackQuery, callback_data: MenuCa
     for step in Ordering.__all_states__:
         if step.state == current_state:
             await state.set_state(previous)
-            await callback.message.answer(
+            await message.answer(
                 f"Ок, вы вернулись к прошлому шагу \n {Ordering.texts[previous.state]}"
             )
             return
@@ -183,13 +180,13 @@ async def first_name(message: types.Message, state: FSMContext):
 
 # Хендлер для отлова некорректных вводов для состояния first_name
 @user_private_router.message(Ordering.first_name)
-async def first_name2(message: types.Message, state: FSMContext):
+async def first_name2(message: types.Message):
     await message.answer("Вы ввели не допустимые данные, введите имя тексом")
 
 
 # Ловим данные для состояние phone и потом меняем состояние на adres
 @user_private_router.message(Ordering.phone, F.contact)
-async def add_phone(message: types.Message, state: FSMContext, session: AsyncSession):
+async def add_phone(message: types.Message, state: FSMContext):
   
         
     
@@ -199,7 +196,7 @@ async def add_phone(message: types.Message, state: FSMContext, session: AsyncSes
 
 # Хендлер для отлова некорректных вводов для состояния phone
 @user_private_router.message(Ordering.phone)
-async def add_phone2(message: types.Message, state: FSMContext):
+async def add_phone2(message: types.Message):
     await message.answer("Чтобы предоставить свой номер телефона, нажмите на кнопку")
 
 
@@ -215,9 +212,6 @@ async def adres(message: types.Message, state: FSMContext, session: AsyncSession
     await state.update_data(delivery_address=message.text)
     await message.answer("Заказ принят", reply_markup=del_reply_kd)
 
-    
-    
-
     user = message.from_user
     data = await state.get_data()
 
@@ -227,7 +221,6 @@ async def adres(message: types.Message, state: FSMContext, session: AsyncSession
     for cart in await orm_get_user_carts(session, user_id=user.id):
         await orm_add_order_items(session, order_id=order_id, product_id=cart.product.id, quantity=cart.quantity)
         await orm_delete_from_cart(session, user_id=user.id, product_id=cart.product.id)
-        
 
 
     await inline_kb_create(message, session)
@@ -236,9 +229,9 @@ async def adres(message: types.Message, state: FSMContext, session: AsyncSession
 
 # Хендлер для отлова некорректных вводов для состояния adres
 @user_private_router.message(Ordering.delivery_address)
-async def adres2(message: types.Message, state: FSMContext):
+async def adres2(message: types.Message):
     await message.answer("Вы ввели не допустимые данные, введите текст описания товара")
-
+# Конец FSM машины для создания заказа
 
 
 @user_private_router.callback_query(MenuCallBack.filter())
@@ -249,7 +242,7 @@ async def user_menu(callback: types.CallbackQuery, callback_data: MenuCallBack, 
         return
     
     if callback_data.menu_name == "create_order":
-        await create_order(callback, callback_data, state, session)
+        await create_order(callback, state, session)
         return
 
 

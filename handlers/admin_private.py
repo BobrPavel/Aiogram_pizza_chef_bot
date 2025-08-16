@@ -36,12 +36,12 @@ ADMIN_KB = get_keyboard(
 
 
 @admin_router.message(Command("admin"))
-async def admin_features(message: types.Message):
+async def admin_on(message: types.Message):
     await message.answer("Что хотите сделать?", reply_markup=ADMIN_KB)
 
 
 @admin_router.message(Command("off_admin"))
-async def admin_features(message: types.Message):
+async def admin_off(message: types.Message):
     await message.answer("Админ клавиатура удалена", reply_markup=del_reply_kd)
 
 
