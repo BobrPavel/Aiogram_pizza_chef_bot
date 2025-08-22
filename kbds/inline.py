@@ -1,9 +1,10 @@
 
 from aiogram.filters.callback_data import CallbackData
 from aiogram.types import InlineKeyboardButton
-from aiogram.utils import keyboard
+# from aiogram.utils import keyboard
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
+from common.texts_for_db import categories_emodzi
 
 
 class MenuCallBack(CallbackData, prefix="menu_"):
@@ -18,11 +19,12 @@ class MenuCallBack(CallbackData, prefix="menu_"):
 def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)):
     keyboard = InlineKeyboardBuilder()
     btns = {
-        "Товары": "catalog",
-        "Корзина": "cart",
-        "О нас": "about",
-        "Оплата": "payment",
-        "Доставка": "shipping",
+        "Товары 🍕": "catalog",
+        "Корзина 🛒": "cart",
+        "О нас ℹ️": "about",
+        "Оплата 💰": "payment",
+        "Доставка 🚚": "shipping",
+        "Ваши заказы 🧾": "orders",
     }
     for text, menu_name in btns.items():
         if menu_name == "catalog":
@@ -31,6 +33,9 @@ def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)):
         elif menu_name == "cart":
             keyboard.add(InlineKeyboardButton(text=text,
                     callback_data=MenuCallBack(level=3, menu_name=menu_name).pack()))
+        elif menu_name == "orders":
+            keyboard.add(InlineKeyboardButton(text=text,
+                    callback_data=MenuCallBack(level=4, menu_name=menu_name).pack()))
         else:
             keyboard.add(InlineKeyboardButton(text=text,
                     callback_data=MenuCallBack(level=level, menu_name=menu_name).pack()))
@@ -41,13 +46,15 @@ def get_user_main_btns(*, level: int, sizes: tuple[int] = (2,)):
 def get_user_catalog_btns(*, level: int, categories: list, sizes: tuple[int] = (2,)):
     keyboard = InlineKeyboardBuilder()
 
-    keyboard.add(InlineKeyboardButton(text="Назад", 
+    keyboard.add(InlineKeyboardButton(text="На главную ◀️", 
             callback_data=MenuCallBack(level=level-1, menu_name="main").pack()))
-    keyboard.add(InlineKeyboardButton(text="Корзина", 
+    keyboard.add(InlineKeyboardButton(text="Корзина 🛒", 
             callback_data=MenuCallBack(level=3, menu_name="cart").pack()))
     
-    for c in categories:
-        keyboard.add(InlineKeyboardButton(text=c.name, 
+
+
+    for c, e in zip(categories, categories_emodzi):
+        keyboard.add(InlineKeyboardButton(text=c.name + f" {e}", 
             callback_data=MenuCallBack(level=level+1, menu_name=c.name, category=c.id).pack()))
         
     return keyboard.adjust(*sizes).as_markup()
@@ -64,11 +71,11 @@ def get_products_btns(
 ):
     keyboard = InlineKeyboardBuilder()
 
-    keyboard.add(InlineKeyboardButton(text='Назад',
+    keyboard.add(InlineKeyboardButton(text='На главную ◀️',
                 callback_data=MenuCallBack(level=level-1, menu_name='catalog').pack()))
     keyboard.add(InlineKeyboardButton(text='Корзина 🛒',
                 callback_data=MenuCallBack(level=3, menu_name='cart').pack()))
-    keyboard.add(InlineKeyboardButton(text='Купить 💵',
+    keyboard.add(InlineKeyboardButton(text='Купить 💸',
                 callback_data=MenuCallBack(level=level, menu_name='add_to_cart', product_id=product_id).pack()))
 
     keyboard.adjust(*sizes)
@@ -106,7 +113,7 @@ def get_user_cart_btns(
     if page:
         keyboard.add(InlineKeyboardButton(text="-1",
                     callback_data=MenuCallBack(level=level, menu_name="decrement", product_id=product_id, page=page).pack()))
-        keyboard.add(InlineKeyboardButton(text="Удалить",
+        keyboard.add(InlineKeyboardButton(text="Удалить 💥",
                     callback_data=MenuCallBack(level=level, menu_name="delete", product_id=product_id, page=page).pack()))
         keyboard.add(InlineKeyboardButton(text="+1",
                     callback_data=MenuCallBack(level=level, menu_name="increment", product_id=product_id, page=page).pack()))
@@ -125,19 +132,81 @@ def get_user_cart_btns(
         keyboard.row(*row)
 
         row2 = [
-        InlineKeyboardButton(text="На главную",
+        InlineKeyboardButton(text="На главную ◀️",
                     callback_data=MenuCallBack(level=0, menu_name='main').pack()),
-        InlineKeyboardButton(text="Заказать",
+        InlineKeyboardButton(text="Заказать 📌",
                     callback_data=MenuCallBack(level=3, menu_name='create_order').pack()),
         ]
         return keyboard.row(*row2).as_markup()
     else:
         keyboard.add(
-            InlineKeyboardButton(text="На главную",
+            InlineKeyboardButton(text="На главную ◀️",
                     callback_data=MenuCallBack(level=0, menu_name='main').pack()))
         
         return keyboard.adjust(*sizes).as_markup()
-                
+
+
+def get_user_orders_btns(
+    *,
+    level: int,
+    page: int,
+    pagination_btns: dict,
+    sizes: tuple[int] = (1, 2)
+):
+    keyboard = InlineKeyboardBuilder()
+    if page:
+        keyboard.add(InlineKeyboardButton(text='На главную ◀️',
+                    callback_data=MenuCallBack(level=0, menu_name='main').pack()))
+
+
+        keyboard.adjust(*sizes)
+
+        row = []
+        for text, menu_name in pagination_btns.items():
+            if menu_name == "next":
+                row.append(InlineKeyboardButton(text=text,
+                        callback_data=MenuCallBack(
+                            level=level,
+                            menu_name=menu_name,
+                            page=page + 1).pack()))
+
+            elif menu_name == "previous":
+                row.append(InlineKeyboardButton(text=text,
+                        callback_data=MenuCallBack(
+                            level=level,
+                            menu_name=menu_name,
+                            page=page - 1).pack()))
+
+        return keyboard.row(*row).as_markup()
+    else:
+        keyboard.add(
+            InlineKeyboardButton(text="На главную ◀️",
+                    callback_data=MenuCallBack(level=0, menu_name='main').pack()))
+        
+        return keyboard.adjust(*sizes).as_markup()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 def get_callback_btns(
     *,

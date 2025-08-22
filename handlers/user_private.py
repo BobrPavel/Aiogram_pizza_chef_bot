@@ -49,9 +49,9 @@ PHONE_KB = get_keyboard(
     "Отмена заказа",
     "Шаг назад",
     "Отправить номер ☎️",
-    placeholder="Нажмите на кнопку <Отправить номер>",
+    placeholder="Нажмите на кнопку: «Отправить номер»",
     request_contact=2,
-    sizes=(1,2,),
+    sizes=(2,),
 )
 
 async def inline_kb_create(message: types.Message, session: AsyncSession):
@@ -65,15 +65,8 @@ async def inline_kb_create(message: types.Message, session: AsyncSession):
     создания заказа.
     '''
 
-    user = message.from_user
-    await orm_add_message(
-        session,
-        user_id=user.id,
-        chat_id = msg.chat.id,
-        message_id = msg.message_id,
-        
-    )
-    await asyncio.sleep(30)  # 100800 или 3 часа
+
+    await asyncio.sleep(20)  # 100800 или 3 часа
     try:
         await msg.delete()
         await message.answer("Бот в спящем режиме, но все ваши действия сохранены. Введите команду /start")  
@@ -222,7 +215,7 @@ async def adres(message: types.Message, state: FSMContext, session: AsyncSession
         await orm_add_order_items(session, order_id=order_id, product_id=cart.product.id, quantity=cart.quantity)
         await orm_delete_from_cart(session, user_id=user.id, product_id=cart.product.id)
 
-
+    await state.clear()
     await inline_kb_create(message, session)
     
 

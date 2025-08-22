@@ -2,6 +2,7 @@ from aiogram.utils.formatting import Bold, as_list, as_marked_section
 
 
 categories = ['Еда', 'Напитки']
+categories_emodzi = ["🍕", "🍹"]
 
 description_for_info_pages = {
     "main": "Добро пожаловать!",
@@ -24,6 +25,8 @@ description_for_info_pages = {
         as_marked_section(Bold("Нельзя:"), "Почта", "Голуби", marker="❌ "),
         sep="\n----------------------\n",
     ).as_html(),
-    'catalog': 'Категории:',
-    'cart': 'В корзине ничего нет!'
+    "catalog": "Категории:",
+    "cart": "В корзине ничего нет!",
+    "orders": "У вас ещё нет заказов!",
 }
+

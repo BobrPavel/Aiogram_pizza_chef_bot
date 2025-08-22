@@ -51,8 +51,8 @@ async def orm_change_banner_image(session: AsyncSession, name: str, image: str):
     await session.commit()
 
 
-async def orm_get_banner(session: AsyncSession, page: str):
-    query = select(Banner).where(Banner.name == page)
+async def orm_get_banner(session: AsyncSession, menu_name: str):
+    query = select(Banner).where(Banner.name == menu_name)
     result = await session.execute(query)
     return result.scalar()
 
@@ -210,11 +210,6 @@ async def orm_reduce_product_in_cart(session: AsyncSession, user_id: int, produc
 ######################## Работа с заказами #######################################
 
 
-# async def orm_add_order(session: AsyncSession, user_id: int, phone_number: str, delivery_address: str, status: str):
-#     session.add(Orders(user_id=user_id, phone_number=phone_number, delivery_address=delivery_address, status=status))
-#     await session.commit()
-
-
 async def orm_add_order(session: AsyncSession, user_id: int, data: dict):
     obj = Orders(
         user_id=user_id,
@@ -226,25 +221,22 @@ async def orm_add_order(session: AsyncSession, user_id: int, data: dict):
     return obj.id
 
 
-async def orm_get_user_orders(session: AsyncSession, user_id):
-    query = select(Orders).filter(Orders.user_id == user_id)
+async def orm_get_user_orders(session: AsyncSession): # Для просмотра заказов админом
+    query = select(Orders).where(Orders.status == "Не готово").options(joinedload(Orders.user))
+    result = await session.execute(query)
+    return result.scalars().all()
+
+async def orm_get_user_orders2(session: AsyncSession, user_id: int): # Для просмотра заказов пользователем
+    query = select(Orders).where(Orders.user_id == user_id).options(joinedload(Orders.user))
     result = await session.execute(query)
     return result.scalars().all()
 
 
-
-
-
-
-async def orm_update_order(session: AsyncSession, orders_id: int, data):
+async def orm_update_order(session: AsyncSession, order_id: int):
     query = (
         update(Orders)
-        .where(Orders.id == orders_id)
-        .values(
-            user_id=data["user_id"],
-            phone_number=data["phone_number"],
-            delivery_address=data["delivery_address"],
-            status=float(data["status"]),
+        .where(Orders.id == order_id)
+        .values(status="Готово",
         )
     )
     await session.execute(query)

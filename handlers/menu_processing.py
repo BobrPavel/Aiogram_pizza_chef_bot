@@ -1,3 +1,4 @@
+from gc import callbacks
 from aiogram.types import InputMediaPhoto
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,8 +8,10 @@ from database.orm_query import (
     orm_delete_from_cart,
     orm_get_banner,
     orm_get_categories,
+    orm_get_order_items,
     orm_get_products,
     orm_get_user_carts,
+    orm_get_user_orders2,
     orm_reduce_product_in_cart,
 )
 
@@ -17,6 +20,7 @@ from kbds.inline import (
     get_user_cart_btns,
     get_user_catalog_btns,
     get_user_main_btns,
+    get_user_orders_btns,
 )
 
 from utils.paginator import Paginator
@@ -61,7 +65,7 @@ async def products(session, level, category, page):
     image = InputMediaPhoto(
         media=product.image,
         caption=f"<strong>{product.name}\
-                </strong>\n{product.description}\nСтоимость: {round(product.price, 2)}\n\
+                </strong>\n{product.description}\nСтоимость: {round(product.price, 2)}₽\n\
                 <strong>Товар {paginator.page} из {paginator.pages}</strong>",
     )
 
@@ -116,8 +120,8 @@ async def carts(session, level, menu_name, page, user_id, product_id):
         )
         image = InputMediaPhoto(
             media=cart.product.image,
-            caption=f"<strong>{cart.product.name}</strong>\n{cart.product.price}$ x {cart.quantity} = {cart_price}$\
-                    \nТовар {paginator.page} из {paginator.pages} в корзине.\nОбщая стоимость товаров в корзине {total_price}",
+            caption=f"<strong>{cart.product.name}</strong>\n{cart.product.price}₽ x {cart.quantity} = {cart_price}₽\
+                    \nТовар {paginator.page} из {paginator.pages} в корзине.\nОбщая стоимость товаров в корзине {total_price}₽",
         )
 
         pagination_btns = pages(paginator)
@@ -131,6 +135,50 @@ async def carts(session, level, menu_name, page, user_id, product_id):
 
     return image, kbds
 
+async def orders(session, level, page, user_id):
+
+
+    user_orders = await orm_get_user_orders2(session, user_id=user_id)
+
+    if not user_orders:
+        banner = await orm_get_banner(session, "orders")
+        image = InputMediaPhoto(
+            media=banner.image, caption=f"<strong>{banner.description}</strong>"
+        )
+
+        kbds = get_user_orders_btns(
+            level=level,
+            page=None,
+            pagination_btns=None,
+        )
+    else:
+
+        paginator = Paginator(user_orders, page=page)
+        order = paginator.get_page()[0]
+
+        order_text = f"Заказ номер: {order.id}\n Получатель: {order.user.first_name}\n Телефон: {order.user.phone} \n Доставка: {order.delivery_address}\n \n Заказано:\n"
+        all_order_price = 0
+        order_id = order.id
+        for order_item in await orm_get_order_items(session, order_id=order_id):
+            order_text = order_text + f"{order_item.product.name} х {order_item.quantity} \n"
+            all_order_price = all_order_price + order_item.product.price * order_item.quantity
+
+        order_text = order_text + f"\n Итого: {round(all_order_price, 2)}₽ \n Статус заказа: {order.status}"
+
+        banner = await orm_get_banner(session, menu_name="orders")
+
+        image = InputMediaPhoto(media=banner.image, caption=order_text)
+
+        pagination_btns = pages(paginator)
+
+        kbds = get_user_orders_btns(
+            level=level,
+            page=page,
+            pagination_btns=pagination_btns,
+        )
+
+    return image, kbds
+ 
 
 async def get_menu_content(
     session: AsyncSession,
@@ -149,3 +197,5 @@ async def get_menu_content(
         return await products(session, level, category, page)
     elif level == 3:
         return await carts(session, level, menu_name, page, user_id, product_id)
+    elif level == 4:
+        return await orders(session, level, page, user_id)

@@ -14,6 +14,9 @@ from database.orm_query import (
     orm_get_product,
     orm_get_products,
     orm_update_product,
+    orm_get_user_orders,
+    orm_get_order_items,
+    orm_update_order,
 )
 
 from filters.chat_types import ChatTypeFilter, IsAdmin
@@ -29,9 +32,10 @@ admin_router.message.filter(ChatTypeFilter(["private"]), IsAdmin())
 ADMIN_KB = get_keyboard(
     "Добавить товар",
     "Ассортимент",
+    "Заказы",
     "Добавить/Изменить баннер",
     placeholder="Выберите действие",
-    sizes=(2,),
+    sizes=(2,1,),
 )
 
 
@@ -59,7 +63,7 @@ async def starring_at_product(callback: types.CallbackQuery, session: AsyncSessi
         await callback.message.answer_photo(
             product.image,
             caption=f"<strong>{product.name}\
-                    </strong>\n{product.description}\nСтоимость: {round(product.price, 2)}",
+                    </strong>\n{product.description}\nСтоимость: {round(product.price, 2)}₽",
             reply_markup=get_callback_btns(
                 btns={
                     "Удалить": f"delete_{product.id}",
@@ -79,6 +83,37 @@ async def delete_product_callback(callback: types.CallbackQuery, session: AsyncS
 
     await callback.answer("Товар удален")
     await callback.message.answer("Товар удален!")
+
+
+@admin_router.message(F.text == 'Заказы')
+async def admin_orders_list(message: types.Message, session: AsyncSession):
+    for order in await orm_get_user_orders(session):
+        order_text = f"Заказ номер: {order.id}\n Получатель: {order.user.first_name}\n Телефон: {order.user.phone} \n Доставка: {order.delivery_address}\n \n Заказано:\n"
+        all_order_price = 0
+        order_id = order.id
+        for order_item in await orm_get_order_items(session, order_id=order_id):
+            order_text = order_text + f"{order_item.product.name} х {order_item.quantity} \n"
+            all_order_price = all_order_price + order_item.product.price * order_item.quantity
+
+        order_text = order_text + f"\n Итого: {round(all_order_price, 2)}₽"
+        await message.answer(
+            order_text, 
+            reply_markup=get_callback_btns(
+                btns={
+                    "Заказ готов": f"order_update_{order.id}",
+                },
+                sizes=(1,)
+            ),
+        )
+
+
+@admin_router.callback_query(F.data.startswith("order_update_"))
+async def order_is_ready(callback: types.CallbackQuery, session: AsyncSession):
+    order_id = callback.data.split("_")[-1]
+    await orm_update_order(session, order_id=order_id)
+
+    await callback.answer("Заказ выполнен")
+
 
 
 ################# Микро FSM для загрузки/изменения баннеров ############################
