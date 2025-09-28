@@ -21,9 +21,7 @@
 ```
 git clon https://github.com/BobrPavel/Aiogram_pizza_chef_bot.git
 ```
-```
-Aiogram_pizza_chef_bot
-```
+
 Создайте виртуальное окружение Pyton и активируйте его
 ```
 python3 -m venv venv  
